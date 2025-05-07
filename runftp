@@ -1,0 +1,56 @@
+#!/bin/bash
+ROOT_DIR="./rootdir"
+#ROOT_DIR="/home/gerard/Projects/containers/proftpd/rootdir/"
+FTP_ROOT="$ROOT_DIR/ftp-root"
+CFG_FILE="$ROOT_DIR/vsftpd.conf"
+LOG_FILE="$ROOT_DIR/vsftpd.log"
+
+if [[ ! -e "$ROOT_DIR" ]]; then
+	echo "Creating $ROOT_DIR"
+	mkdir -p $ROOT_DIR || { echo "Failed"; exit 1; }
+fi
+
+if [[ ! -e "$CFG_FILE" ]]; then
+	echo "Creating $CFG_FILE"
+	cp proftpd.conf $CFG_FILE || { echo "Failed"; exit 1; }
+fi
+
+if [[ ! -e "$FTP_ROOT" ]]; then
+    echo "Creating $FTP_ROOT"
+    mkdir -p "$FTP_ROOT" || { echo "Failed"; exit 1; }
+fi
+
+# Make sure the log file exists
+touch $LOG_FILE
+chmod 777 $LOG_FILE
+chmod -R 777 $ROOT_DIR
+
+# Function to check if a container exists and is running
+run_or_start_container() {
+  local container_name=$1
+  local run_command=$2
+  echo $run_command
+
+  if podman ps -a --format "{{.Names}}" | grep -qw "$container_name"; then
+    # Check if the container is already running
+    if podman ps --format "{{.Names}}" | grep -qw "$container_name"; then
+      echo "$container_name is already running."
+    else
+      echo "Starting existing container: $container_name"
+      podman start "$container_name"
+    fi
+  else
+    echo "Creating and running container: $container_name"
+    eval "$run_command"
+  fi
+}
+
+#  --net=host --privileged \
+#  -p 20:20 -p 21:21 -p 30000-30010:30000-30010 \
+run_or_start_container proftpd "podman run -d --name proftpd \
+  --net=host \
+  --privileged \
+  -v \"$FTP_ROOT\":/home/ftpuser/ftp \
+  -v \"$CFG_FILE\":/etc/vsftpd/vsftpd.conf:ro \
+  -v \"$LOG_FILE\":/var/log/proftpd.log \
+  localhost/proftpd"

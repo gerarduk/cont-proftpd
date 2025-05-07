@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "Removing existing proftpd container and image"
+sudo podman stop proftpd
+sudo podman rm proftpd
+sudo podman image rm proftpd
+echo "Creating new proftpd image"
+sudo podman build -t proftpd .
